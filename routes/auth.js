@@ -5,45 +5,80 @@ const bcrypt = require('bcryptjs');
 const { Usuario } = require('../models');
 const { SECRET_KEY } = require('../middleware/auth');
 
-// Endpoint de login
+// POST /register
+router.post('/register', async (req, res) => {
+  const { nombre, apellido, dni, email, password } = req.body;
+
+  try {
+    // Validar campos requeridos
+    if (!nombre || !apellido || !dni || !email || !password) {
+      return res.status(400).json({ message: 'Todos los campos son obligatorios' });
+    }
+
+    // Verificar que el email no esté registrado
+    const existeEmail = await Usuario.findOne({ where: { email } });
+    if (existeEmail) {
+      return res.status(400).json({ message: 'Este email ya está registrado' });
+    }
+
+    // Verificar que el DNI no esté registrado
+    const existeDni = await Usuario.findOne({ where: { dni } });
+    if (existeDni) {
+      return res.status(400).json({ message: 'Este DNI ya está registrado' });
+    }
+
+    // Hashear la contraseña
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Crear el usuario
+    const nuevoUsuario = await Usuario.create({
+      nombre,
+      apellido,
+      dni,
+      email,
+      password: hashedPassword,
+      rol: 'user',
+      activo: true
+    });
+
+    // Devolver respuesta exitosa (sin la contraseña)
+    const usuarioResponse = nuevoUsuario.toJSON();
+    delete usuarioResponse.password;
+
+    res.status(201).json({
+      message: 'Usuario registrado con éxito',
+      user: usuarioResponse
+    });
+
+  } catch (error) {
+    console.error('Register error:', error);
+    res.status(500).json({ message: 'Error interno del servidor' });
+  }
+});
+
+// POST /login
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    // Busca usuario por email
+    // Buscar usuario
     const user = await Usuario.findOne({ where: { email } });
 
     if (!user) {
       return res.status(401).json({ message: 'Credenciales inválidas' });
     }
 
-    // Verifica si la contraseña está hasheada (bcrypt)
-    const isPasswordHashed = user.password.startsWith('$2a$') || user.password.startsWith('$2b$');
-    
-    let passwordMatch = false;
-    
-    if (isPasswordHashed) {
-      // Compara contraseña hasheada
-      passwordMatch = await bcrypt.compare(password, user.password);
-    } else {
-      // Migración: hashea contraseñas antiguas en texto plano
-      passwordMatch = user.password === password;
-      if (passwordMatch) {
-        const hashedPassword = await bcrypt.hash(password, 10);
-        await user.update({ password: hashedPassword });
-      }
-    }
-
+    // Comparar contraseña con bcrypt
+    const passwordMatch = await bcrypt.compare(password, user.password);
     if (!passwordMatch) {
       return res.status(401).json({ message: 'Credenciales inválidas' });
     }
 
-    // Verifica si el usuario está activo
     if (!user.activo) {
       return res.status(403).json({ message: 'Usuario inactivo. Contacte al administrador.' });
     }
  
-    // Genera token JWT con datos del usuario (expira en 2h)
+    // Generar Token
     const token = jwt.sign(
       { id: user.id, email: user.email, rol: user.rol, nombre: user.nombre },
       SECRET_KEY,

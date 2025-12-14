@@ -6,30 +6,36 @@ const { sequelize } = require('./models');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware: CORS y parseo de JSON
+// Middleware
 app.use(cors());
 app.use(express.json());
 
-// Rutas principales
+// Routes
 app.use('/api', require('./routes'));
 
-// Ruta de prueba
+// Test Route
 app.get('/', (req, res) => {
   res.json({ message: 'API Backend La Sede funcionando' });
 });
 
-// Inicia servidor y sincroniza BD
+// Start Server + Sync DB
 async function startServer() {
   try {
-    // Sincroniza modelos con la BD (alter: true modifica tablas existentes)
-    await sequelize.sync({ alter: true });
-    console.log('Base de datos sincronizada con MySQL');
+    // Verificar conexión a la base de datos
+    await sequelize.authenticate();
+    console.log('Conexión a la base de datos establecida correctamente.');
+    
+    // No usar alter: true para evitar problemas con demasiados índices
+    // Las tablas ya deberían estar creadas
+    // Si necesitas recrear las tablas, usa: await sequelize.sync({ force: true })
+    // await sequelize.sync({ alter: false }); // No alterar tablas existentes
     
     app.listen(PORT, () => {
       console.log(`Servidor corriendo en http://localhost:${PORT}`);
     });
   } catch (error) {
     console.error('Error al iniciar el servidor:', error);
+    process.exit(1);
   }
 }
 
