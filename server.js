@@ -6,22 +6,22 @@ const { sequelize } = require('./models');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
+// Middleware: CORS y parseo de JSON
 app.use(cors());
 app.use(express.json());
 
-// Routes
+// Rutas principales
 app.use('/api', require('./routes'));
 
-// Test Route
+// Ruta de prueba
 app.get('/', (req, res) => {
   res.json({ message: 'API Backend La Sede funcionando' });
 });
 
-// Start Server + Sync DB
+// Inicia servidor y sincroniza BD
 async function startServer() {
   try {
-    // alter table
+    // Sincroniza modelos con la BD (alter: true modifica tablas existentes)
     await sequelize.sync({ alter: true });
     console.log('Base de datos sincronizada con MySQL');
     

@@ -23,19 +23,19 @@ module.exports = (sequelize, DataTypes) => {
     cuota_medio: { type: DataTypes.STRING, allowNull: true } // 'efectivo', 'debito', etc.
   }, {
     hooks: {
-      // Hashear contraseña antes de crear
+      // Hook: hashea contraseña antes de crear usuario
       beforeCreate: async (usuario) => {
         if (usuario.password) {
-          // Solo hashear si no está ya hasheada (no empieza con $2a$ o $2b$)
+          // Solo hashea si no está ya hasheada (bcrypt)
           if (!usuario.password.startsWith('$2a$') && !usuario.password.startsWith('$2b$')) {
             usuario.password = await bcrypt.hash(usuario.password, 10);
           }
         }
       },
-      // Hashear contraseña antes de actualizar (solo si se cambió)
+      // Hook: hashea contraseña antes de actualizar (solo si cambió)
       beforeUpdate: async (usuario) => {
         if (usuario.changed('password') && usuario.password) {
-          // Solo hashear si no está ya hasheada
+          // Solo hashea si no está ya hasheada
           if (!usuario.password.startsWith('$2a$') && !usuario.password.startsWith('$2b$')) {
             usuario.password = await bcrypt.hash(usuario.password, 10);
           }

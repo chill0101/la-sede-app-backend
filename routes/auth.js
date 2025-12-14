@@ -5,35 +5,32 @@ const bcrypt = require('bcryptjs');
 const { Usuario } = require('../models');
 const { SECRET_KEY } = require('../middleware/auth');
 
-// POST /login
+// Endpoint de login
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    // Buscar usuario
+    // Busca usuario por email
     const user = await Usuario.findOne({ where: { email } });
 
     if (!user) {
       return res.status(401).json({ message: 'Credenciales inválidas' });
     }
 
-    // Verificar si la contraseña está hasheada (empieza con $2a$ o $2b$)
+    // Verifica si la contraseña está hasheada (bcrypt)
     const isPasswordHashed = user.password.startsWith('$2a$') || user.password.startsWith('$2b$');
     
     let passwordMatch = false;
     
     if (isPasswordHashed) {
-      // Contraseña ya hasheada: usar bcrypt.compare
+      // Compara contraseña hasheada
       passwordMatch = await bcrypt.compare(password, user.password);
     } else {
-      // Contraseña en texto plano (migración): comparar directamente
+      // Migración: hashea contraseñas antiguas en texto plano
       passwordMatch = user.password === password;
-      
-      // Si coincide, hashear la contraseña y actualizarla en la BD
       if (passwordMatch) {
         const hashedPassword = await bcrypt.hash(password, 10);
         await user.update({ password: hashedPassword });
-        console.log(`Contraseña migrada a bcrypt para usuario: ${email}`);
       }
     }
 
@@ -41,11 +38,12 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ message: 'Credenciales inválidas' });
     }
 
+    // Verifica si el usuario está activo
     if (!user.activo) {
       return res.status(403).json({ message: 'Usuario inactivo. Contacte al administrador.' });
     }
  
-    // Generar Token
+    // Genera token JWT con datos del usuario (expira en 2h)
     const token = jwt.sign(
       { id: user.id, email: user.email, rol: user.rol, nombre: user.nombre },
       SECRET_KEY,

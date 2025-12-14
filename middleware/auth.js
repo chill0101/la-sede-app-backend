@@ -1,16 +1,19 @@
 const jwt = require('jsonwebtoken');
 
-const SECRET_KEY = process.env.JWT_SECRET || 'fallback_secret_key'; // fallback_secret_key es el fallback para dev pero se tiene que usar el secret_key del .env
+// Clave secreta para firmar tokens JWT
+const SECRET_KEY = process.env.JWT_SECRET || 'fallback_secret_key';
 
+// Middleware: Verifica token JWT en headers
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
-  // Formato: "Bearer TOKEN"
+  // Extrae token del formato "Bearer TOKEN"
   const token = authHeader && authHeader.split(' ')[1];
 
   if (!token) {
     return res.status(401).json({ message: 'Acceso denegado. Token no proporcionado.' });
   }
 
+  // Verifica y decodifica token, agrega user al request
   jwt.verify(token, SECRET_KEY, (err, user) => {
     if (err) {
       return res.status(403).json({ message: 'Token inválido o expirado.' });
