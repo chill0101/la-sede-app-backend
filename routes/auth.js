@@ -1,8 +1,60 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 const { Usuario } = require('../models');
 const { SECRET_KEY } = require('../middleware/auth');
+
+// POST /register
+router.post('/register', async (req, res) => {
+  const { nombre, apellido, dni, email, password } = req.body;
+
+  try {
+    // Validar campos requeridos
+    if (!nombre || !apellido || !dni || !email || !password) {
+      return res.status(400).json({ message: 'Todos los campos son obligatorios' });
+    }
+
+    // Verificar que el email no esté registrado
+    const existeEmail = await Usuario.findOne({ where: { email } });
+    if (existeEmail) {
+      return res.status(400).json({ message: 'Este email ya está registrado' });
+    }
+
+    // Verificar que el DNI no esté registrado
+    const existeDni = await Usuario.findOne({ where: { dni } });
+    if (existeDni) {
+      return res.status(400).json({ message: 'Este DNI ya está registrado' });
+    }
+
+    // Hashear la contraseña
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Crear el usuario
+    const nuevoUsuario = await Usuario.create({
+      nombre,
+      apellido,
+      dni,
+      email,
+      password: hashedPassword,
+      rol: 'user',
+      activo: true
+    });
+
+    // Devolver respuesta exitosa (sin la contraseña)
+    const usuarioResponse = nuevoUsuario.toJSON();
+    delete usuarioResponse.password;
+
+    res.status(201).json({
+      message: 'Usuario registrado con éxito',
+      user: usuarioResponse
+    });
+
+  } catch (error) {
+    console.error('Register error:', error);
+    res.status(500).json({ message: 'Error interno del servidor' });
+  }
+});
 
 // POST /login
 router.post('/login', async (req, res) => {
@@ -16,8 +68,9 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ message: 'Credenciales inválidas' });
     }
 
-    if (user.password !== password) {
-      // TODO: Meterr bcrypt.compare(password, user.password)
+    // Comparar contraseña con bcrypt
+    const passwordMatch = await bcrypt.compare(password, user.password);
+    if (!passwordMatch) {
       return res.status(401).json({ message: 'Credenciales inválidas' });
     }
 

@@ -21,15 +21,21 @@ app.get('/', (req, res) => {
 // Start Server + Sync DB
 async function startServer() {
   try {
-    // alter table
-    await sequelize.sync({ alter: true });
-    console.log('Base de datos sincronizada con MySQL');
+    // Verificar conexión a la base de datos
+    await sequelize.authenticate();
+    console.log('Conexión a la base de datos establecida correctamente.');
+    
+    // No usar alter: true para evitar problemas con demasiados índices
+    // Las tablas ya deberían estar creadas
+    // Si necesitas recrear las tablas, usa: await sequelize.sync({ force: true })
+    // await sequelize.sync({ alter: false }); // No alterar tablas existentes
     
     app.listen(PORT, () => {
       console.log(`Servidor corriendo en http://localhost:${PORT}`);
     });
   } catch (error) {
     console.error('Error al iniciar el servidor:', error);
+    process.exit(1);
   }
 }
 

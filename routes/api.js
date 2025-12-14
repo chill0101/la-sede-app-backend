@@ -18,15 +18,24 @@ router.get('/init', async (req, res) => {
     // Formatear para que coincida con lo que espera el seed del frontend
     // (Esta es una adaptación rápida para no reescribir todo el frontend)
     res.json({
-      usuarios,
-      canchas,
-      reservas,
-      clases, // Se envían los objetos Usuario completos (gracias al include: Usuario)
-      partidos,
-      entradas
+      usuarios: usuarios || [],
+      canchas: canchas || [],
+      reservas: reservas || [],
+      clases: clases || [],
+      partidos: partidos || [],
+      entradas: entradas || []
     });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error en /init:', error);
+    res.status(500).json({ 
+      error: error.message,
+      usuarios: [],
+      canchas: [],
+      reservas: [],
+      clases: [],
+      partidos: [],
+      entradas: []
+    });
   }
 });
 
@@ -185,6 +194,113 @@ router.put('/usuarios/:id', authenticateToken, async (req, res) => {
     delete uJSON.password;
     
     res.json(uJSON);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// --- ADMIN: USUARIOS ---
+// PUT /usuarios/:id/admin - Admin puede actualizar cualquier usuario
+router.put('/usuarios/:id/admin', authenticateToken, async (req, res) => {
+  if (req.user.rol !== 'admin') {
+    return res.status(403).json({ message: 'Requiere rol de admin' });
+  }
+  try {
+    const usuario = await Usuario.findByPk(req.params.id);
+    if (!usuario) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    const { nombre, apellido, email, rol, activo } = req.body;
+    
+    if (nombre) usuario.nombre = nombre;
+    if (apellido) usuario.apellido = apellido;
+    if (email) usuario.email = email;
+    if (rol) usuario.rol = rol;
+    if (typeof activo === 'boolean') usuario.activo = activo;
+
+    await usuario.save();
+    
+    const uJSON = usuario.toJSON();
+    delete uJSON.password;
+    
+    res.json(uJSON);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE /usuarios/:id - Admin puede eliminar usuarios
+router.delete('/usuarios/:id', authenticateToken, async (req, res) => {
+  if (req.user.rol !== 'admin') {
+    return res.status(403).json({ message: 'Requiere rol de admin' });
+  }
+  try {
+    const usuario = await Usuario.findByPk(req.params.id);
+    if (!usuario) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    // No permitir eliminarse a sí mismo
+    if (usuario.id === req.user.id) {
+      return res.status(400).json({ message: 'No puedes eliminarte a ti mismo' });
+    }
+
+    await usuario.destroy();
+    res.json({ message: 'Usuario eliminado correctamente' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// --- ADMIN: CLASES ---
+// POST /clases - Admin puede crear clases
+router.post('/clases', authenticateToken, async (req, res) => {
+  if (req.user.rol !== 'admin') {
+    return res.status(403).json({ message: 'Requiere rol de admin' });
+  }
+  try {
+    const { disciplina, diaSemana, hora, cupo } = req.body;
+    
+    if (!disciplina || !diaSemana || !hora || !cupo) {
+      return res.status(400).json({ message: 'Todos los campos son obligatorios' });
+    }
+
+    const clase = await Clase.create({
+      disciplina,
+      diaSemana,
+      hora,
+      cupo: parseInt(cupo)
+    });
+
+    res.status(201).json(clase);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// --- ADMIN: PARTIDOS ---
+// POST /partidos - Admin puede crear partidos
+router.post('/partidos', authenticateToken, async (req, res) => {
+  if (req.user.rol !== 'admin') {
+    return res.status(403).json({ message: 'Requiere rol de admin' });
+  }
+  try {
+    const { rival, fechaHora, stockEntradas, torneo, estadio } = req.body;
+    
+    if (!rival || !fechaHora || stockEntradas === undefined) {
+      return res.status(400).json({ message: 'Rival, fechaHora y stockEntradas son obligatorios' });
+    }
+
+    const partido = await Partido.create({
+      torneo: torneo || 'Liga',
+      rival,
+      fechaHora,
+      estadio: estadio || 'Diego A. Maradona',
+      stockEntradas: parseInt(stockEntradas)
+    });
+
+    res.status(201).json(partido);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
