@@ -1,9 +1,14 @@
 const { sequelize, Usuario, Cancha, Reserva, Clase, Partido, Entrada } = require('../models');
+const bcrypt = require('bcryptjs');
 
 async function seed() {
   try {
     await sequelize.sync({ force: true }); // Reinicia la base de datos
     console.log('Base de datos reiniciada.');
+
+    // Hashear contraseñas
+    const hashedAdminPassword = await bcrypt.hash('admin', 10);
+    const hashedSocioPassword = await bcrypt.hash('socio', 10);
 
     // 1. Usuarios
     await Usuario.bulkCreate([
@@ -12,7 +17,7 @@ async function seed() {
         apellido: 'Club',
         dni: '11111111',
         email: 'admin@aj.com',
-        password: 'admin', // TODO: Meter bcrypt para seguridad
+        password: hashedAdminPassword,
         rol: 'admin',
         activo: true,
         cuota_mes: 11,
@@ -25,7 +30,7 @@ async function seed() {
         apellido: 'Socio',
         dni: '22222222',
         email: 'socio@aj.com',
-        password: 'socio', // TODO: Meter bcrypt para seguridad
+        password: hashedSocioPassword,
         rol: 'user',
         activo: true,
         cuota_mes: 10,

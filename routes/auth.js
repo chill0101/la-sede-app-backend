@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 const { Usuario } = require('../models');
 const { SECRET_KEY } = require('../middleware/auth');
 
@@ -16,8 +17,27 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ message: 'Credenciales inválidas' });
     }
 
-    if (user.password !== password) {
-      // TODO: Meterr bcrypt.compare(password, user.password)
+    // Verificar si la contraseña está hasheada (empieza con $2a$ o $2b$)
+    const isPasswordHashed = user.password.startsWith('$2a$') || user.password.startsWith('$2b$');
+    
+    let passwordMatch = false;
+    
+    if (isPasswordHashed) {
+      // Contraseña ya hasheada: usar bcrypt.compare
+      passwordMatch = await bcrypt.compare(password, user.password);
+    } else {
+      // Contraseña en texto plano (migración): comparar directamente
+      passwordMatch = user.password === password;
+      
+      // Si coincide, hashear la contraseña y actualizarla en la BD
+      if (passwordMatch) {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        await user.update({ password: hashedPassword });
+        console.log(`Contraseña migrada a bcrypt para usuario: ${email}`);
+      }
+    }
+
+    if (!passwordMatch) {
       return res.status(401).json({ message: 'Credenciales inválidas' });
     }
 
