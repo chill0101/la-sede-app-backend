@@ -1,3 +1,7 @@
+-- ⚠️ IMPORTANTE: File que armamos de referencia
+-- Para configurar la base de datos, usar el comando: npm run seed
+-- El seed crea las tablas y datos con las contraseñas hasheadas correctamente
+-- 
 -- Archivo de Setup para importar en phpMyAdmin o en xamp como dice Lucas :v
 -- Crear base de datos
 CREATE DATABASE IF NOT EXISTS `la_sede_db`;
